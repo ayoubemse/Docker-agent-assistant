@@ -2,3 +2,12 @@ anthropic>=0.100.0
 langchain>=1.2.0
 langchain-anthropic>=1.4.0
 langgraph>=1.1.0
+fastapi
+uvicorn
+voyageai
+chromadb
+langchain-community
+langchain-text-splitters
+pypdf
+python-dotenv
+langgraph-checkpoint-sqlite

@@ -1,0 +1,13 @@
+services:
+  agent:
+    build: .
+    container_name: docker_agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./chroma_db:/app/chroma_db
+      - ./conversations.db:/app/conversations.db
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}

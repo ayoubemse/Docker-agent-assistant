@@ -1,48 +1,8 @@
-from tools import listContainers, getContainerStats, restartContainer, killContainer
-from langchain.agents import create_agent
-from langchain.chat_models import init_chat_model
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
-import os
-
-model = init_chat_model(
-    "claude-sonnet-4-6",
-    temperature=0.3,
-    timeout=600,
-    max_tokens=25000,
-    streaming=True,
-    api_key=os.environ.get("ANTHROPIC_API_KEY"),
-)
-
-checkpointer = InMemorySaver()
-
-
-SYSTEM_PROMPT = """You are a docker assistant.
-
-## Tools
-- `listContainers`: list all running containers with name, ID, status, memory
-- `getContainerStats`: get stats for a container by ID
-- `restartContainer`: restart a container by name
-- `killContainer`: kill a container by name
-
-## Rules
-- Always use tools to answer, never guess
-- Call tools immediately when needed — do not ask for confirmation, it is handled automatically
-- Report exact error messages on failure
-- Be concise — this is a CLI tool"""
-
-tools = [listContainers, getContainerStats, restartContainer, killContainer]
-
-agent = create_agent(
-    model=model,
-    tools=tools,
-    system_prompt=SYSTEM_PROMPT,
-    checkpointer=checkpointer,
-)
-
 
 def stream_model_text(agent, payload, config):
-    """Stream the model's textual output; ignore tool_use / deltas."""
+    """Stream the model's textual output; ignore tool_use / deltas. Returns collected text."""
+    collected = []
     for chunk, metadata in agent.stream(
         payload, config=config, stream_mode="messages"
     ):
@@ -52,13 +12,16 @@ def stream_model_text(agent, payload, config):
         if isinstance(content, str):
             if content:
                 print(content, end="", flush=True)
+                collected.append(content)
         elif isinstance(content, list):
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "text":
                     text = block.get("text", "")
                     if text:
                         print(text, end="", flush=True)
+                        collected.append(text)
     print()
+    return "".join(collected)
 
 
 def pending_interrupt_prompt(state):
@@ -96,13 +59,14 @@ def run_agent(agent, user_input, config):
 
     payload = {"messages": [{"role": "user", "content": user_input}]}
 
+    result = ""
     while True:
-        stream_model_text(agent, payload, config)
+        result = stream_model_text(agent, payload, config)
 
         state = agent.get_state(config)
         prompt = pending_interrupt_prompt(state)
         if prompt is None:
-            return  # graph finished cleanly
+            return result  # graph finished cleanly
 
         print(f"\n⚠️  {prompt}")
         answer = _ask("Confirm? (yes/no): ")

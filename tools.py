@@ -44,7 +44,11 @@ def killContainer(container_name: str) -> str:
     
     return f"killed container : {container_name} with result: " + (result.stdout.strip() or result.stderr.strip() or "No output from docker command.")   
 
-
-
+@tool
+def searchDocs(query: str) -> str:
+    """search for relevant docker documentation based on a query"""
+    from rag_experiment import search_docs, collection
+    results = search_docs(query, collection)
+    return "\n".join(results) if results else "No relevant documents found."
 
 
